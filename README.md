@@ -1,1 +1,1 @@
-# test-java-app
+# no-pom-app
