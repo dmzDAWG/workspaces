@@ -1,4 +1,4 @@
-# Workspace Management Plugin
+# Workspaces Management Plugin
 
 Oh My Zsh plugin for managing git worktrees across multiple microservices with integrated specification templates for Claude Code.
 
@@ -16,18 +16,18 @@ Oh My Zsh plugin for managing git worktrees across multiple microservices with i
 
 1. Create the plugin directory:
 ```bash
-mkdir -p ~/.oh-my-zsh/custom/plugins/workspace
+mkdir -p ~/.oh-my-zsh/custom/plugins/workspaces
 ```
 
 2. Copy the plugin file:
 ```bash
-cp workspace_plugin.zsh ~/.oh-my-zsh/custom/plugins/workspace/workspace.plugin.zsh
+cp workspaces.plugin.zsh ~/.oh-my-zsh/custom/plugins/workspaces/workspaces.plugin.zsh
 ```
 
 3. Add the plugin to your `~/.zshrc`:
 ```bash
-# Find the plugins line and add 'workspace' to the list
-plugins=(git ... workspace)
+# Find the plugins line and add 'workspaces' to the list
+plugins=(git ... workspaces)
 ```
 
 4. Reload your shell:
@@ -43,7 +43,7 @@ mkdir -p ~/Work/templates
 
 ## Configuration
 
-You can customize the plugin by editing these variables at the top of `workspace.plugin.zsh`:
+You can customize the plugin by editing these variables at the top of `workspaces.plugin.zsh`:
 
 ```bash
 WORK_DIR="$HOME/Work"                  # Base work directory
