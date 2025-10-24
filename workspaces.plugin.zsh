@@ -117,6 +117,85 @@ _open_in_intellij() {
     return 0
 }
 
+# Function to create project-specific specs
+_create_project_specs() {
+    local template_type="$1"
+    local feature_name="$2"
+    local branch_name="$3"
+    local worktree_base="$4"
+    local -a projects=("${@:5}")
+    
+    # Determine project template file based on type
+    local project_template=""
+    case "$template_type" in
+        feature)
+            project_template="template-project-feature.md"
+            ;;
+        bug|bugfix)
+            project_template="template-project-bug.md"
+            ;;
+        hotfix)
+            project_template="template-project-hotfix.md"
+            ;;
+        chore)
+            project_template="template-project-chore.md"
+            ;;
+        *)
+            # For other types, try to find a project version or fall back to feature
+            project_template="template-project-feature.md"
+            ;;
+    esac
+    
+    local plugin_template_path="$(dirname "${(%):-%x}")/templates/$project_template"
+    local user_template_path="$TEMPLATES_DIR/$project_template"
+    local template_path=""
+    
+    # Check for user template first, then plugin template
+    if [[ -f "$user_template_path" ]]; then
+        template_path="$user_template_path"
+    elif [[ -f "$plugin_template_path" ]]; then
+        template_path="$plugin_template_path"
+        echo "${fg[cyan]}  ℹ️  Using reference template from plugin${reset_color}"
+    else
+        echo "${fg[yellow]}  ⚠️  Project template not found: $project_template${reset_color}"
+        echo "${fg[yellow]}     You can copy reference templates with:${reset_color}"
+        echo "${fg[yellow]}     cp -r $(dirname "${(%):-%x}")/templates/* $TEMPLATES_DIR/${reset_color}"
+        return 1
+    fi
+    
+    # Create project spec for each project
+    for project in "${projects[@]}"; do
+        local project_spec_path="$worktree_base/$project/PROJECT-SPEC.md"
+        
+        # Only create if project directory exists
+        if [[ -d "$worktree_base/$project" ]]; then
+            # Copy and customize template
+            cp "$template_path" "$project_spec_path"
+            
+            # Customize the project template
+            local current_date=$(date +"%Y-%m-%d")
+            local temp_file=$(mktemp)
+            
+            sed -e "s/\[Feature Name\]/$feature_name/g" \
+                -e "s/\[Brief Description\]/$feature_name/g" \
+                -e "s/\[Project Name\]/$project/g" \
+                -e "1a\\
+\\
+**Created**: $current_date\\
+**Branch**: \`$branch_name\`\\
+**Project**: $project\\
+" \
+                "$project_spec_path" > "$temp_file"
+            
+            mv "$temp_file" "$project_spec_path"
+            
+            echo "${fg[green]}  ✓ Created project spec: $project/PROJECT-SPEC.md${reset_color}"
+        fi
+    done
+    
+    return 0
+}
+
 _copy_and_customize_template() {
     local template_type="$1"
     local feature_name="$2"
@@ -124,11 +203,32 @@ _copy_and_customize_template() {
     local worktree_base="$4"
     local -a projects=("${@:5}")
     
-    # Map template types to files
+    # Determine if this should use multi-level specs
+    local use_multilevel=false
+    local project_count=${#projects[@]}
+    
+    # Use multi-level specs for features with multiple projects
+    # For bugs/hotfixes/chores, always use project-level specs only
+    if [[ "$template_type" == "feature" && $project_count -gt 1 ]]; then
+        use_multilevel=true
+    fi
+    
+    # For single project features, bugs, hotfixes, chores: create project spec only
+    if [[ "$template_type" != "feature" || $project_count -eq 1 ]]; then
+        echo "${fg[cyan]}📄 Creating project-specific specification...${reset_color}"
+        _create_project_specs "$template_type" "$feature_name" "$branch_name" "$worktree_base" "${projects[@]}"
+        return $?
+    fi
+    
+    # Multi-project features: create both main coordination spec and project specs
+    echo "${fg[cyan]}📄 Creating multi-level specifications...${reset_color}"
+    
+    # First create the main coordination spec
     local template_file=""
     case "$template_type" in
         feature)
-            template_file="template-feature-implementation.md"
+            # Use coordination template for multi-project features
+            template_file="template-feature-coordination.md"
             ;;
         bug|bugfix)
             template_file="template-bug-fix.md"
@@ -151,15 +251,24 @@ _copy_and_customize_template() {
             ;;
     esac
     
-    local template_path="$TEMPLATES_DIR/$template_file"
-    local spec_path="$worktree_base/SPEC.md"
+    # Check for user template first, then plugin template
+    local plugin_template_path="$(dirname "${(%):-%x}")/templates/$template_file"
+    local user_template_path="$TEMPLATES_DIR/$template_file"
+    local template_path=""
     
-    # Check if template exists
-    if [[ ! -f "$template_path" ]]; then
-        echo "${fg[yellow]}  ⚠️  Template not found: $template_path${reset_color}"
-        echo "${fg[yellow]}     Skipping template creation${reset_color}"
+    if [[ -f "$user_template_path" ]]; then
+        template_path="$user_template_path"
+    elif [[ -f "$plugin_template_path" ]]; then
+        template_path="$plugin_template_path"
+        echo "${fg[cyan]}  ℹ️  Using reference template from plugin${reset_color}"
+    else
+        echo "${fg[yellow]}  ⚠️  Main template not found: $template_file${reset_color}"
+        echo "${fg[yellow]}     You can copy reference templates with:${reset_color}"
+        echo "${fg[yellow]}     cp -r $(dirname "${(%):-%x}")/templates/* $TEMPLATES_DIR/${reset_color}"
         return 1
     fi
+    
+    local spec_path="$worktree_base/SPEC.md"
     
     # Copy template
     cp "$template_path" "$spec_path"
@@ -174,8 +283,19 @@ _copy_and_customize_template() {
     # Customize the template based on type
     case "$template_type" in
         feature)
+            # For coordination template, add project breakdown section
+            local project_breakdown=""
+            for project in "${projects[@]}"; do
+                project_breakdown="$project_breakdown- **$project**: See \`$project/PROJECT-SPEC.md\` - [Brief description of $project role]\\n"
+            done
+            
             sed -e "s/\[Feature Name\]/$feature_name/g" \
                 -e "s/# \[Feature Name\] Implementation Spec/# $feature_name Implementation Spec/" \
+                -e "s/{{#each projects}}//" \
+                -e "s/- \*\*{{name}}\*\*: See \`{{name}}\/PROJECT-SPEC.md\` - \[Brief description of {{name}} role\]//" \
+                -e "s/{{\/each}}//" \
+                -e "/## Project Breakdown/a\\
+$project_breakdown" \
                 -e "1a\\
 \\
 **Created**: $current_date\\
@@ -211,8 +331,12 @@ _copy_and_customize_template() {
     # Move temp file back to spec path
     mv "$temp_file" "$spec_path"
     
-    echo "${fg[green]}  ✓ Created spec from template: $template_file${reset_color}"
+    echo "${fg[green]}  ✓ Created main coordination spec: $template_file${reset_color}"
     echo "${fg[cyan]}    Location: $spec_path${reset_color}"
+    
+    # Now create project-specific specs
+    echo "${fg[cyan]}  📋 Creating project-specific specifications...${reset_color}"
+    _create_project_specs "$template_type" "$feature_name" "$branch_name" "$worktree_base" "${projects[@]}"
     
     return 0
 }

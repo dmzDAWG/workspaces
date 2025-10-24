@@ -1,1 +1,1 @@
-READ "README.md" and "workspace.plugin.zsh"
+READ "README.md" and "workspaces.plugin.zsh"
