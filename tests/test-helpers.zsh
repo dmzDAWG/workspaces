@@ -133,9 +133,11 @@ test_intellij_detection() {
   local project_dir=$(create_mock_project "intellij-test" "$work_dir")
   
   # Test 1: Invalid project path
-  local output=$(capture_output "_open_in_intellij '/nonexistent/path'")
+  _open_in_intellij '/nonexistent/path' > /dev/null 2>&1
   local exit_code=$?
   assert_not_equals "0" "$exit_code" "Should fail with invalid path"
+  
+  local output=$(capture_output "_open_in_intellij '/nonexistent/path'")
   assert_contains "$output" "Invalid project path" "Should show error message"
   
   # Test 2: Valid project path (will try to detect IntelliJ)
@@ -177,33 +179,38 @@ Description: [Brief Description]'
   assert_contains "$spec_content" "feature/test-feature" "Should include branch name in metadata"
   assert_contains "$spec_content" "project1, project2" "Should include projects in metadata"
   
-  # Test 2: Bug template
-  local bug_template='# Bug Fix: [Brief Description]
+  # Test 2: Bug template (creates project-specific spec)
+  local bug_template='# Bug Fix: [Brief Description] - [Project Name]
 
 ## Issue
 Bug: [Brief Description]'
   
-  create_test_template "template-bug-fix.md" "$work_dir" "$bug_template"
+  create_test_template "template-project-bug.md" "$work_dir" "$bug_template"
   
   local bug_worktree="$work_dir/worktrees/fix-bug"
-  mkdir -p "$bug_worktree"
+  mkdir -p "$bug_worktree/project1"
   
   run_with_test_env "$work_dir" "_copy_and_customize_template 'bug' 'fix-bug' 'bugfix/fix-bug' '$bug_worktree' 'project1'"
   
-  assert_file_exists "$bug_worktree/SPEC.md" "Should create bug SPEC.md file"
+  assert_file_exists "$bug_worktree/project1/PROJECT-SPEC.md" "Should create bug PROJECT-SPEC.md file"
+  assert_file_not_exists "$bug_worktree/SPEC.md" "Should not create main SPEC.md for bugs"
   
-  local bug_spec=$(cat "$bug_worktree/SPEC.md")
+  local bug_spec=$(cat "$bug_worktree/project1/PROJECT-SPEC.md")
   assert_contains "$bug_spec" "fix-bug" "Should replace [Brief Description] with bug name"
   
-  # Test 3: Missing template
+  # Test 3: Unknown template type (should fail)
   local missing_worktree="$work_dir/worktrees/missing-template"
-  mkdir -p "$missing_worktree"
+  mkdir -p "$missing_worktree/project1"
   
-  local output=$(capture_output "run_with_test_env '$work_dir' '_copy_and_customize_template \"nonexistent\" \"test\" \"test\" \"$missing_worktree\" \"project1\"'")
+  # Test exit code directly
+  run_with_test_env "$work_dir" '_copy_and_customize_template "nonexistent" "test" "test" "'$missing_worktree'" "project1"' > /dev/null 2>&1
   local exit_code=$?
   
-  assert_not_equals "0" "$exit_code" "Should fail with missing template"
-  assert_contains "$output" "Template not found" "Should show template not found message"
+  assert_not_equals "0" "$exit_code" "Should fail with unknown template type"
+  
+  # Test output separately
+  local output=$(capture_output "run_with_test_env '$work_dir' '_copy_and_customize_template \"nonexistent\" \"test\" \"test\" \"$missing_worktree\" \"project1\"'")
+  assert_contains "$output" "Unknown template type" "Should show unknown template type message"
   assert_file_not_exists "$missing_worktree/SPEC.md" "Should not create SPEC.md with missing template"
 }
 
@@ -229,7 +236,7 @@ test_template_metadata() {
   assert_contains "$spec_content" "**Projects**: arrakis, wallet" "Should include projects list"
   
   # Check title replacement
-  assert_contains "$spec_content" "# metadata-test Test" "Should replace feature name in title"
+  assert_contains "$spec_content" "# metadata-test Implementation Spec" "Should replace feature name in title"
 }
 
 test_template_edge_cases() {
@@ -237,24 +244,26 @@ test_template_edge_cases() {
   
   local work_dir=$(create_test_work_dir)
   
-  # Test 1: Empty template
-  create_test_template "template-feature-implementation.md" "$work_dir" ""
+  # Test 1: Single project feature (creates project spec)
+  create_test_template "template-project-feature.md" "$work_dir" "# [Feature Name] - [Project Name]"
   
   local worktree_base="$work_dir/worktrees/empty-template"
-  mkdir -p "$worktree_base"
+  mkdir -p "$worktree_base/project1"
   
   run_with_test_env "$work_dir" "_copy_and_customize_template 'feature' 'empty-template' 'feature/empty-template' '$worktree_base' 'project1'"
   
-  assert_file_exists "$worktree_base/SPEC.md" "Should create SPEC.md even with empty template"
+  assert_file_exists "$worktree_base/project1/PROJECT-SPEC.md" "Should create PROJECT-SPEC.md for single project feature"
+  assert_file_not_exists "$worktree_base/SPEC.md" "Should not create main SPEC.md for single project"
   
-  # Test 2: Template with special characters
+  # Test 2: Multi-project feature with special characters
   local special_content='# [Feature Name] with "quotes" and $variables and [brackets]'
-  create_test_template "template-feature-implementation.md" "$work_dir" "$special_content"
+  create_test_template "template-feature-coordination.md" "$work_dir" "$special_content"
+  create_test_template "template-project-feature.md" "$work_dir" "# [Feature Name] - [Project Name]"
   
   local special_worktree="$work_dir/worktrees/special-chars"
-  mkdir -p "$special_worktree"
+  mkdir -p "$special_worktree/project1" "$special_worktree/project2"
   
-  run_with_test_env "$work_dir" "_copy_and_customize_template 'feature' 'special-chars' 'feature/special-chars' '$special_worktree' 'project1'"
+  run_with_test_env "$work_dir" "_copy_and_customize_template 'feature' 'special-chars' 'feature/special-chars' '$special_worktree' 'project1' 'project2'"
   
   local spec_content=$(cat "$special_worktree/SPEC.md")
   assert_contains "$spec_content" "special-chars with" "Should handle special characters in replacement"

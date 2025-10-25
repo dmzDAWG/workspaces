@@ -92,7 +92,15 @@ run_test_suite() {
 
 # Main test execution
 run_tests() {
-  local test_dir="$(dirname "${0:A}")"
+  # Get the absolute path to the tests directory
+  local script_path="${0:A}"
+  local test_dir="$(dirname "$script_path")"
+  
+  # Ensure we're using the tests directory
+  if [[ "$test_dir" != */tests ]]; then
+    test_dir="$test_dir/tests"
+  fi
+  
   local total_exit_code=0
   
   echo "${fg[green]}🚀 Starting Workspaces Plugin Test Suite${reset_color}"
@@ -106,7 +114,9 @@ run_tests() {
   
   # Define test suites
   local -A test_suites
+  test_suites[multilevel]="$test_dir/test-multilevel-specs.zsh"
   test_suites[main]="$test_dir/test-main-commands.zsh"
+  test_suites[basic]="$test_dir/test-basic-functions.zsh"
   test_suites[helpers]="$test_dir/test-helpers.zsh"
   test_suites[git]="$test_dir/test-git-operations.zsh"
   test_suites[edge]="$test_dir/test-edge-cases.zsh"
@@ -114,6 +124,11 @@ run_tests() {
   if [[ "$QUICK" != "true" ]]; then
     test_suites[integration]="$test_dir/test-integration.zsh"
   fi
+  
+  # Debug: show what test_dir is and what files exist
+  verbose_log "Test directory: $test_dir"
+  verbose_log "Available test files:"
+  verbose_log "$(ls -la "$test_dir"/test-*.zsh 2>/dev/null || echo 'No test files found')"
   
   # Run test suites based on pattern
   case "$TEST_PATTERN" in
@@ -218,6 +233,7 @@ export -f verbose_log
 export VERBOSE QUICK TEST_PATTERN
 
 # Run main function if script is executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]] || [[ "${(%):-%x}" == "${0:A}" ]]; then
+# Simplified execution check for zsh compatibility
+if [[ "${0:A}" == *"test-runner.zsh" ]]; then
   main "$@"
 fi

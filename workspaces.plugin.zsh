@@ -141,8 +141,8 @@ _create_project_specs() {
             project_template="template-project-chore.md"
             ;;
         *)
-            # For other types, try to find a project version or fall back to feature
-            project_template="template-project-feature.md"
+            echo "${fg[yellow]}  ⚠️  Unknown template type: $template_type${reset_color}"
+            return 1
             ;;
     esac
     
