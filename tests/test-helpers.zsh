@@ -3,9 +3,18 @@
 # Test Suite for Helper Functions
 # Tests _create_java_version_file, _open_in_intellij, _copy_and_customize_template
 
-# Load test framework and plugin
-source "$(dirname "${0:A}")/test-framework.zsh"
-load_workspaces_plugin
+# Source test framework from absolute path
+TEST_DIR="$(dirname "${0:A}")"
+source "$TEST_DIR/test-framework.zsh"
+
+# Load plugin with absolute path
+PLUGIN_PATH="$(dirname "$TEST_DIR")/workspaces.plugin.zsh"
+if [[ -f "$PLUGIN_PATH" ]]; then
+  source "$PLUGIN_PATH"
+else
+  echo "Error: Could not find plugin at $PLUGIN_PATH"
+  exit 1
+fi
 
 # Test _create_java_version_file function
 test_java_version_detection() {
@@ -251,6 +260,9 @@ test_template_edge_cases() {
   assert_contains "$spec_content" "special-chars with" "Should handle special characters in replacement"
 }
 
+# Initialize test framework
+test_init
+
 # Run all helper tests
 echo "${fg[blue]}🔧 Running Helper Function Tests${reset_color}"
 
@@ -262,3 +274,11 @@ test_template_metadata
 test_template_edge_cases
 
 echo "${fg[green]}✓ Helper function tests completed${reset_color}"
+
+# Generate report
+test_report
+
+# Cleanup
+test_cleanup
+
+exit $?

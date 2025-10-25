@@ -3,9 +3,18 @@
 # Test Suite for Edge Cases and Error Handling
 # Tests error conditions, edge cases, and graceful degradation
 
-# Load test framework and plugin
-source "$(dirname "${0:A}")/test-framework.zsh"
-load_workspaces_plugin
+# Source test framework from absolute path
+TEST_DIR="$(dirname "${0:A}")"
+source "$TEST_DIR/test-framework.zsh"
+
+# Load plugin with absolute path
+PLUGIN_PATH="$(dirname "$TEST_DIR")/workspaces.plugin.zsh"
+if [[ -f "$PLUGIN_PATH" ]]; then
+  source "$PLUGIN_PATH"
+else
+  echo "Error: Could not find plugin at $PLUGIN_PATH"
+  exit 1
+fi
 
 test_missing_directories() {
   test_case "Missing directories - Graceful handling"
@@ -285,6 +294,9 @@ test_system_command_failures() {
   assert_true "true" "Should handle command failures gracefully"
 }
 
+# Initialize test framework
+test_init
+
 # Run all edge case tests
 echo "${fg[blue]}⚠️  Running Edge Case and Error Handling Tests${reset_color}"
 
@@ -301,3 +313,11 @@ test_unicode_and_encoding
 test_system_command_failures
 
 echo "${fg[green]}✓ Edge case and error handling tests completed${reset_color}"
+
+# Generate report
+test_report
+
+# Cleanup
+test_cleanup
+
+exit $?

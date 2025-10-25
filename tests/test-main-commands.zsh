@@ -3,9 +3,18 @@
 # Test Suite for Main Commands
 # Tests all primary user-facing commands of the workspaces plugin
 
-# Load test framework and plugin
-source "$(dirname "${0:A}")/test-framework.zsh"
-load_workspaces_plugin
+# Source test framework from absolute path
+TEST_DIR="$(dirname "${0:A}")"
+source "$TEST_DIR/test-framework.zsh"
+
+# Load plugin with absolute path
+PLUGIN_PATH="$(dirname "$TEST_DIR")/workspaces.plugin.zsh"
+if [[ -f "$PLUGIN_PATH" ]]; then
+  source "$PLUGIN_PATH"
+else
+  echo "Error: Could not find plugin at $PLUGIN_PATH"
+  exit 1
+fi
 
 # Mock user input for interactive functions
 mock_user_input() {
@@ -247,6 +256,9 @@ test_error_handling() {
   verbose_log "Error handling tests completed (limited scope for safety)"
 }
 
+# Initialize test framework
+test_init
+
 # Run all main command tests
 echo "${fg[blue]}⚙️  Running Main Command Tests${reset_color}"
 
@@ -263,3 +275,11 @@ test_directory_structure
 test_error_handling
 
 echo "${fg[green]}✓ Main command tests completed${reset_color}"
+
+# Generate report
+test_report
+
+# Cleanup
+test_cleanup
+
+exit $?

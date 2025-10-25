@@ -3,9 +3,18 @@
 # Test Suite for Git Operations
 # Tests git-related functionality in the workspaces plugin
 
-# Load test framework and plugin
-source "$(dirname "${0:A}")/test-framework.zsh"
-load_workspaces_plugin
+# Source test framework from absolute path
+TEST_DIR="$(dirname "${0:A}")"
+source "$TEST_DIR/test-framework.zsh"
+
+# Load plugin with absolute path
+PLUGIN_PATH="$(dirname "$TEST_DIR")/workspaces.plugin.zsh"
+if [[ -f "$PLUGIN_PATH" ]]; then
+  source "$PLUGIN_PATH"
+else
+  echo "Error: Could not find plugin at $PLUGIN_PATH"
+  exit 1
+fi
 
 test_git_repository_validation() {
   test_case "Git repository validation"
@@ -307,6 +316,9 @@ test_git_conflict_scenarios() {
   )
 }
 
+# Initialize test framework
+test_init
+
 # Run all git operation tests
 echo "${fg[blue]}🔀 Running Git Operation Tests${reset_color}"
 
@@ -320,3 +332,11 @@ test_git_fetch_operations
 test_git_conflict_scenarios
 
 echo "${fg[green]}✓ Git operation tests completed${reset_color}"
+
+# Generate report
+test_report
+
+# Cleanup
+test_cleanup
+
+exit $?

@@ -3,9 +3,18 @@
 # Integration Test Suite for Workspaces Plugin
 # Tests complete workflows and end-to-end scenarios
 
-# Load test framework and plugin
-source "$(dirname "${0:A}")/test-framework.zsh"
-load_workspaces_plugin
+# Source test framework from absolute path
+TEST_DIR="$(dirname "${0:A}")"
+source "$TEST_DIR/test-framework.zsh"
+
+# Load plugin with absolute path
+PLUGIN_PATH="$(dirname "$TEST_DIR")/workspaces.plugin.zsh"
+if [[ -f "$PLUGIN_PATH" ]]; then
+  source "$PLUGIN_PATH"
+else
+  echo "Error: Could not find plugin at $PLUGIN_PATH"
+  exit 1
+fi
 
 # Mock user input for interactive tests
 simulate_user_input() {
@@ -465,6 +474,9 @@ test_error_recovery_workflow() {
   test_pass "Error recovery workflow test passed"
 }
 
+# Initialize test framework
+test_init
+
 # Run all integration tests
 echo "${fg[blue]}🔗 Running Integration Tests${reset_color}"
 
@@ -475,3 +487,11 @@ test_java_version_management
 test_error_recovery_workflow
 
 echo "${fg[green]}✓ Integration tests completed${reset_color}"
+
+# Generate report
+test_report
+
+# Cleanup
+test_cleanup
+
+exit $?

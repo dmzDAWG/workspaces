@@ -195,10 +195,17 @@ create_test_work_dir() {
   ((WORK_DIR_COUNTER++))
   # Create a more unique identifier using multiple sources
   local unique_id="${WORK_DIR_COUNTER}_$$_$(date +%s%3N 2>/dev/null || date +%s)_$RANDOM"
+  
+  # Ensure TEST_TEMP_DIR is set and valid
+  if [[ -z "$TEST_TEMP_DIR" || ! -d "$TEST_TEMP_DIR" ]]; then
+    echo "Error: TEST_TEMP_DIR not set or invalid: $TEST_TEMP_DIR" >&2
+    return 1
+  fi
+  
   local unique_work_dir="$TEST_TEMP_DIR/Work_$unique_id"
-  mkdir -p "$unique_work_dir/projects"
-  mkdir -p "$unique_work_dir/worktrees"
-  mkdir -p "$unique_work_dir/templates"
+  mkdir -p "$unique_work_dir/projects" || return 1
+  mkdir -p "$unique_work_dir/worktrees" || return 1
+  mkdir -p "$unique_work_dir/templates" || return 1
   echo "$unique_work_dir"
 }
 
@@ -330,13 +337,13 @@ run_with_test_env() {
 # Capture function output
 capture_output() {
   local command="$@"
-  local output_file="$TEST_TEMP_DIR/capture_$$"
+  local output_file="/tmp/capture_$$_$RANDOM"
   
   eval "$command" > "$output_file" 2>&1
   local exit_code=$?
   
-  cat "$output_file"
-  rm -f "$output_file"
+  cat "$output_file" 2>/dev/null || echo ""
+  rm -f "$output_file" 2>/dev/null
   
   return $exit_code
 }
@@ -373,13 +380,29 @@ test_report() {
   return $TESTS_FAILED
 }
 
+# Verbose logging function (used by tests)
+verbose_log() {
+  if [[ "$VERBOSE" == "true" ]]; then
+    echo "$@"
+  fi
+}
+
 # Helper to load workspaces plugin in test environment
 load_workspaces_plugin() {
-  local plugin_path="$(dirname "${0:A}")/../workspaces.plugin.zsh"
-  if [[ -f "$plugin_path" ]]; then
-    source "$plugin_path"
-  else
-    echo "Warning: Could not load workspaces plugin from $plugin_path"
-    return 1
-  fi
+  # Try multiple paths to find the plugin
+  local plugin_paths=(
+    "$(dirname "${0:A}")/../workspaces.plugin.zsh"
+    "$(dirname "${(%):-%x}")/../workspaces.plugin.zsh"
+    "/Users/dbunin/.oh-my-zsh/custom/plugins/workspaces/workspaces.plugin.zsh"
+  )
+  
+  for plugin_path in "${plugin_paths[@]}"; do
+    if [[ -f "$plugin_path" ]]; then
+      source "$plugin_path"
+      return 0
+    fi
+  done
+  
+  echo "Warning: Could not load workspaces plugin from any of: ${plugin_paths[*]}"
+  return 1
 }

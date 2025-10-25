@@ -3,7 +3,18 @@
 # Basic Function Tests - Simplified version to verify core functionality
 # Tests template and Java version functions without full plugin integration
 
-source "$(dirname "${0:A}")/test-framework.zsh"
+# Source test framework from absolute path
+TEST_DIR="$(dirname "${0:A}")"
+source "$TEST_DIR/test-framework.zsh"
+
+# Load plugin with absolute path
+PLUGIN_PATH="$(dirname "$TEST_DIR")/workspaces.plugin.zsh"
+if [[ -f "$PLUGIN_PATH" ]]; then
+  source "$PLUGIN_PATH"
+else
+  echo "Error: Could not find plugin at $PLUGIN_PATH"
+  exit 1
+fi
 
 test_create_test_work_dir() {
   test_case "create_test_work_dir - Test environment creation"
