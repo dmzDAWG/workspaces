@@ -82,8 +82,8 @@ run_test_suite() {
   echo "${fg[cyan]}🧪 Running test suite: $suite_name${reset_color}"
   echo "${fg[cyan]}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset_color}"
   
-  # Source and run the test suite
-  source "$suite_file"
+  # Simply execute the test file
+  zsh "$suite_file"
   local exit_code=$?
   
   echo ""
